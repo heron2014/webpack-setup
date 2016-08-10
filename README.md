@@ -1,179 +1,94 @@
-Set up webpack steps to the project:
+There are multiple ways to set up webpack (WIP)
 
 - ```npm i webpack --save-dev # or just -D if you want to save typing```
 
-#### Basic set up
+- webpack.config.js expects object with following properties:
+  - entry (path to starting point of the application, example app/index.js where you render your components)
+  - output (compiled files)
+  - module
+  - plugins
 
-- create basic project structure
+#### Basic development set up
+
+- basic project structure
 
 ```
 
-├── app                     
-|    ├── index.js    
+├── src                     
+|    ├── index.js       #starting point
 |    ├── component.js            
 |                 
-├── build               #transformed app as bundle goes here             
-|                          
+├── public                           
+|    ├── index.html    
+|    ├── bundle.js       #transformed app as bundle goes here                  
 └── package.json                    
 |                          
 └── webpack.config.js
 ```
 
-- generate index.html using plugin ```npm i html-webpack-plugin --save-dev```
-- update package.json in scripts : ``` "build": "webpack"```
-- run webpack ```npm run build```
-- webpack.config.js (basic): [Basic set up](https://github.com/heron2014/webpack-setup/issues/1)
 
-#### Spliting the configuration
+- ```npm install react --save // you can install specific version like react@0.14.3```
+- ```npm install react-dom --save // you can install specific version like react-dom@0.14.3```
 
-- ```npm i webpack-merge --save-dev```
-- define some split points to our configuration so we can customize it per npm script
-- integrate a tool known as ```webpack-validator``` to the project, it will validate the configuration against a schema and warn if we are trying to do something not sensible: ```npm i webpack-validator --save-dev```
-- add to the file:
+- ```npm install --save-dev babel-loader babel-core babel-preset-es2015 babel-preset-react```
+- ```npm install webpack webpack-dev-server --save-dev```
+- create webpack.config.js file and paste the code below
+- create .babelrc file and add presets:
+
 ```js
+{
+  "presets": ["react", "es2015"]
+}
 
-const validate = require('webpack-validator');
-
-//instead of module.exports = config;
-module.exports = validate(config);
 ```
-- if you break your webpack the validation will give you a nice error message
 
-- this set up is for small/medium projects: [upgraded set up](https://github.com/heron2014/webpack-setup/issues/2)
+In package.json:
 
-#### Add Hot Module Replacement for automatic browser refresh
-
--```webpack-dev-server``` is a development server running in-memory. It refreshes content automatically in the browser while you develop your application. It also supports an advanced Webpack feature known as ```Hot Module Replacement```
-- **Note**: You should use webpack-dev-server strictly for development. If you want to host your application, consider other standard solutions, such as Apache or Nginx.
-
-- ```npm i webpack-dev-server --save-dev```
-- update package.json:
 ```js
 "scripts": {
-
   "start": "webpack-dev-server",
-
-  "build": "webpack"
-},
-
-```
-- execute ```npm run start``` or ```npm start```
-- at the top of the execution, you can see that our webpack-server is runnig on ```http://localhost:8080/``` , navigate there
-- add hot reload/refresh, we could use ```webpack-dev-server --inline --hot``` but next we will configure the proper way
-- create ```libs/parts.js``` where we do configuration there, this keeps our webpack.config.js simple and promotes reuse and paste the code from here [HMR](https://github.com/heron2014/webpack-setup/issues/3)
-- update the ```webpack.config.js``` file to serve lib/parts.js by adding:
-```js
-//require the lib/parts :const parts = require('./libs/parts');
-//in switch statement in default case: instead of config = merge(common, {});
-config = merge(
-  common,
-  parts.devServer({
-    // Customize host/port here if needed
-    host: process.env.HOST,
-    port: process.env.PORT
-  })
-);
+  "build": "webpack --progress --colors",
 ```
 
-- Execute ```npm start``` and surf to ```localhost:8080```. Try modifying app/component.js. It should refresh the browser.
-- you can also type: ```http://localhost:8080/webpack-dev-server/``` in the browser and it will give you the app state info
-- if you encounter issue, check this approach: [here](http://survivejs.com/webpack/developing-with-webpack/automatic-browser-refresh/#hmr-on-windows-ubuntu-and-vagrant)
+Example of basic configuration (webpack.config.js):
 
-#### Refreshing CSS
-- ```npm i css-loader style-loader --save-dev```
-- update libs/parts to inslude this:
 ```js
-exports.setupCSS = function(paths) {
-  return {
-    module: {
-      loaders: [
-        {
-          test: /\.css$/,
-          loaders: ['style', 'css'],
-          include: paths
-        }
-      ]
-    }
-  };
-}
-```
-- update ```webpack.config.js``` in switch statement (case build and default) to include:
-```js
-//build
-config = merge(
-  common,
-  parts.setupCSS(PATHS.app)
-);
-//and in deafult after common:
-parts.setupCSS(PATHS.app),
-```
+var path = require('path');
 
-## Minification, bundle splitting, and caching (advanced)
-
-- ```npm i react --save```
-- check what is the size of the app by running ```npm run build```
-
-###### Minifying the Code - http://survivejs.com/webpack/building-with-webpack/minifying-build/#minifying-the-code
-- add to lib/parts:
-```js
-exports.minify = function() {
-  return {
-    plugins: [
-      new webpack.optimize.UglifyJsPlugin({
-        compress: {
-          warnings: false
-        }
-      })
+module.exports = {
+  entry: './src/index.js',
+  output: {
+    path: path.join(__dirname, 'public'),
+    filename: 'bundle.js',
+    publicPath: '/public/'
+  },
+  devServer: {
+    contentBase: './public',
+    inline: true,//for hot reloading
+    port: 3333
+  },
+  module: {
+    loaders: [
+      {
+        test: /\.css$/,
+        loaders: ['style', 'css']
+      },
+      {
+        test: /\.jsx?$/,
+        exclude: /(node_modules|bower_components)/,
+        loader: 'babel'
+      }
     ]
-  };
-}
-
-```
-- update webpack.config.js in case build add after common: ```parts.minify(),
-```
-- run ```npm run build``` and check the size again - it should much much smaller
-- reference to configure uglify - http://survivejs.com/webpack/building-with-webpack/minifying-build/#controlling-uglifyjs-through-webpack
-- setting up env variables see here http://survivejs.com/webpack/building-with-webpack/setting-environment-variables/#setting-process-env-node_env-
-
-
-## Configuring React
-
-- ```npm i babel-loader babel-core --save-dev```
-- if you want to use  ```import Button from './Button';``` add this code to your webpack.config.js
-```js
-const common = {
-  ...
-  // Important! Do not remove ''. If you do, imports without
-  // an extension won't work anymore!
-  resolve: {
-    extensions: ['', '.js', '.jsx']
   }
-}
+};
 ```
-- add as well module object
-- ```npm i babel-preset-es2015 babel-preset-react --save-dev```
-- create new file .babelrc.
-- http://survivejs.com/webpack/advanced-techniques/configuring-react/#setting-up-babel-preset-react-hmre-
-- ```npm i babel-preset-react-hmre --save-dev```
-- update webpack.config.js with :
-```js
-const TARGET = process.env.npm_lifecycle_event;
+#### dev tools
+#### Modules - css, images, files etc... (wip)
+#### Minifying (wip)
+#### Splitting configuration (production versus developmnt)
+#### dev server
 
-process.env.BABEL_ENV = TARGET;
 
-```
-- update .bablerc , add env object:
-```js
-"env": {
-    "start": {
-      "presets": [
-        "react-hmre"
-      ]
-    }
-  }
-```
-
-### Examples of basic REact webpack.config.js https://github.com/heron2014/webpack-setup/issues/4
 #### Reference
 - https://webpack.github.io/docs/list-of-tutorials.html
 - http://survivejs.com/
@@ -182,3 +97,5 @@ process.env.BABEL_ENV = TARGET;
 - [Alternative Ways to Use webpack-dev-server](http://survivejs.com/webpack/developing-with-webpack/automatic-browser-refresh/#alternative-ways-to-use-webpack-dev-server-)
 - [Enabling Sourcemaps During Development](http://survivejs.com/webpack/developing-with-webpack/enabling-sourcemaps/#enabling-sourcemaps-during-development)
 - [DefinePlugin](http://survivejs.com/webpack/building-with-webpack/setting-environment-variables/#the-basic-idea-of-defineplugin-)
+- [Set up webpack article](http://www.christianalfoni.com/articles/2015_04_19_The-ultimate-webpack-setup)
+- [react kickstarter](https://github.com/vesparny/react-kickstart)
